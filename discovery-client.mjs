@@ -38,5 +38,5 @@ export async function resolveConnection(payload, status=()=>{}) {
   const local=locals.find(Boolean);
   if(local) return {url:local,local:true};
   if(payload.online && payload.public_url && await probeConnection(payload.public_url,payload.server_id,7000)) return {url:payload.public_url,local:false};
-  throw new Error('Сервер недоступен. Возможно, ноутбук выключен. Попробуйте позже.');
+  throw new Error('Сервер временно недоступен. Проверьте интернет и попробуйте позже.');
 }
