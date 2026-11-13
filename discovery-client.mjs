@@ -21,10 +21,28 @@ export async function verifyConnection(envelope, spki) {
 }
 export async function fetchConnection(settings) {
   const u=new URL(settings.config_url); u.searchParams.set('refresh',String(Date.now()));
-  if(u.protocol!=='https:' || !['raw.githubusercontent.com','gist.githubusercontent.com'].includes(u.hostname)) throw new Error('Неизвестный источник настройки');
-  const r=await fetch(u,{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(8000)});
-  if(!r.ok) throw new Error('Не удалось получить актуальный адрес');
-  return verifyConnection(await r.json(),settings.public_key_spki);
+  if(u.protocol!=='https:' || u.username || u.password || !['raw.githubusercontent.com','gist.githubusercontent.com'].includes(u.hostname)) throw new Error('Неизвестный источник настройки');
+  const sources=[];
+  const parts=u.pathname.split('/').filter(Boolean);
+  if(u.hostname==='raw.githubusercontent.com' && parts.length>=4){
+    // raw.githubusercontent.com can retain the previous offline address for
+    // several minutes, even with a fresh query string. Prefer GitHub's current
+    // repository contents; fall back to raw on API throttling or an outage.
+    const [owner,repo,ref,...path]=parts;
+    const api=new URL(`https://api.github.com/repos/${owner}/${repo}/contents/${path.join('/')}`);
+    api.searchParams.set('ref',ref);api.searchParams.set('refresh',String(Date.now()));
+    sources.push(api);
+  }
+  sources.push(u);
+  let failure;
+  for(const source of sources){
+    try{
+      const r=await fetch(source,{credentials:'omit',cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'},signal:AbortSignal.timeout(8000)});
+      if(!r.ok) throw new Error('Не удалось получить актуальный адрес');
+      return await verifyConnection(await r.json(),settings.public_key_spki);
+    }catch(e){failure=e;}
+  }
+  throw failure;
 }
 export async function probeConnection(url,serverId,timeout=2200) {
   try {
