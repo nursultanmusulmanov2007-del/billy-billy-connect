@@ -1,4 +1,4 @@
-import {fetchConnection,resolveConnection} from './discovery-client.mjs';
+import {fetchConnection,resolveConnection} from './discovery-client.mjs?v=20261113-recovery';
 const status=document.getElementById('status'), retry=document.getElementById('retry'), local=document.getElementById('local');
 let settings;
 async function connect(){
